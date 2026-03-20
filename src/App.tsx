@@ -14,6 +14,7 @@ import Terms from "./pages/legal/Terms";
 import Refund from "./pages/legal/Refund";
 import Shipping from "./pages/legal/Shipping";
 import Contact from "./pages/legal/Contact";
+import ScrollToTop from "./components/ScrollToTop";
 
 const queryClient = new QueryClient();
 
@@ -23,6 +24,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <ScrollToTop />
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/editor" element={<Editor />} />
