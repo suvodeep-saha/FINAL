@@ -3,6 +3,9 @@ import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { Check, Zap } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { loadRazorpayScript } from "@/lib/razorpay";
 
 const plans = [
   {
@@ -44,7 +47,56 @@ const fade = {
   transition: { duration: 0.5 },
 };
 
-const Pricing = () => (
+const Pricing = () => {
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const handleSubscribe = async (plan: any) => {
+    if (plan.name === "Free") {
+      toast.success("You are already on the Free plan!");
+      return;
+    }
+
+    setIsProcessing(true);
+    const res = await loadRazorpayScript();
+    
+    if (!res) {
+      toast.error("Razorpay SDK failed to load. Are you online?");
+      setIsProcessing(false);
+      return;
+    }
+
+    // Convert price string (e.g. '₹499' or '₹1,499') to integer paise (amount * 100)
+    const numericPrice = parseInt(plan.price.replace(/\D/g, ''));
+    const amountInPaise = numericPrice * 100;
+
+    const options = {
+      key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+      amount: amountInPaise,
+      currency: "INR",
+      name: "SnapCut AI",
+      description: `Upgrade to ${plan.name} Plan`,
+      handler: function (response: any) {
+        toast.success(`Payment successful! Payment ID: ${response.razorpay_payment_id}`);
+      },
+      prefill: {
+        name: "",
+        email: "",
+        contact: ""
+      },
+      theme: {
+        color: "#6366f1"
+      }
+    };
+
+    const paymentObject = new (window as any).Razorpay(options);
+    paymentObject.on("payment.failed", function (response: any) {
+      toast.error(response.error.description || "Payment failed");
+    });
+    paymentObject.open();
+    setIsProcessing(false);
+  };
+
+  return (
   <div className="min-h-screen bg-background">
     <Navbar />
     <section className="pt-32 pb-20 px-4">
@@ -92,6 +144,8 @@ const Pricing = () => (
                   variant={plan.gradient ? "gradient" : "outline"}
                   className="w-full"
                   size="lg"
+                  disabled={isProcessing}
+                  onClick={() => handleSubscribe(plan)}
                 >
                   {plan.cta}
                 </Button>
@@ -103,6 +157,7 @@ const Pricing = () => (
     </section>
     <Footer />
   </div>
-);
+  );
+};
 
 export default Pricing;
