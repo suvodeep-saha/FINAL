@@ -69,31 +69,51 @@ const Pricing = () => {
     const numericPrice = parseInt(plan.price.replace(/\D/g, ''));
     const amountInPaise = numericPrice * 100;
 
-    const options = {
-      key: import.meta.env.VITE_RAZORPAY_KEY_ID,
-      amount: amountInPaise,
-      currency: "INR",
-      name: "SnapCut AI",
-      description: `Upgrade to ${plan.name} Plan`,
-      handler: function (response: any) {
-        toast.success(`Payment successful! Payment ID: ${response.razorpay_payment_id}`);
-      },
-      prefill: {
-        name: "",
-        email: "",
-        contact: ""
-      },
-      theme: {
-        color: "#6366f1"
+    try {
+      // 1. Create order on backend
+      const orderRes = await fetch('/api/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: amountInPaise }),
+      });
+      const orderData = await orderRes.json();
+      
+      if (!orderRes.ok) {
+        throw new Error(orderData.error || "Failed to create order");
       }
-    };
 
-    const paymentObject = new (window as any).Razorpay(options);
-    paymentObject.on("payment.failed", function (response: any) {
-      toast.error(response.error.description || "Payment failed");
-    });
-    paymentObject.open();
-    setIsProcessing(false);
+      // 2. Open Razorpay Checkout with order_id
+      const options = {
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+        amount: amountInPaise,
+        currency: "INR",
+        name: "SnapCut AI",
+        description: `Upgrade to ${plan.name} Plan`,
+        order_id: orderData.id, // Successfully passing the backend order ID!
+        handler: function (response: any) {
+          toast.success(`Payment successful! Payment ID: ${response.razorpay_payment_id}`);
+        },
+        prefill: {
+          name: "",
+          email: "",
+          contact: ""
+        },
+        theme: {
+          color: "#6366f1"
+        }
+      };
+
+      const paymentObject = new (window as any).Razorpay(options);
+      paymentObject.on("payment.failed", function (response: any) {
+        toast.error(response.error.description || "Payment failed");
+      });
+      paymentObject.open();
+    } catch (error: any) {
+      console.error("Payment error:", error);
+      toast.error(error.message || "Something went wrong creating the payment.");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
