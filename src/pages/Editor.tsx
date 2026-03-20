@@ -122,11 +122,32 @@ const Editor = () => {
     try {
       const response = await fetch(urlToDownload);
       const blob = await response.blob();
+      const filename = `snapcut-${Date.now()}.png`;
+
+      // Try Web Share API for mobile devices first
+      const fileForShare = new File([blob], filename, { type: 'image/png' });
+      if (navigator.canShare && navigator.canShare({ files: [fileForShare] })) {
+        try {
+          await navigator.share({
+            files: [fileForShare],
+            title: 'My SnapCut Image',
+          });
+          return; // Share successful
+        } catch (shareError) {
+          // Ignore AbortError (user cancelled share), fallback otherwise
+          if ((shareError as Error).name === 'AbortError') return;
+          console.error("Share failed, falling back to download:", shareError);
+        }
+      }
+
+      // Fallback for desktop or unsupported mobile browsers
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `snapcut-${Date.now()}.png`;
+      a.download = filename;
+      document.body.appendChild(a); // Vital for some mobile browsers & Firefox
       a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error("Error downloading image:", error);
